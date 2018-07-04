@@ -10,14 +10,60 @@
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h>
-void gotoxy(int x,int y)
- {
- printf("%c[%d;%df",0x1B,y,x);
- }
+
+struct sockaddr_in c_addr;
+char fname[100];
+ void* SendFileToClient(int *arg)
+{
+      int sockfd=(int)*arg;
+      printf("Connection accepted and id: %d\n",sockfd);
+      printf("Connected to Clent: %s:%d\n",inet_ntoa(c_addr.sin_addr),ntohs(c_addr.sin_port));
+       write(sockfd, fname,256);
+
+        FILE *fp = fopen(fname,"rb");
+        if(fp==NULL)
+        {
+            printf("File open error");
+            return 1;
+        }
+
+        /* Read data from file and send it */
+        while(1)
+        {
+            /* First read file in chunks of 256 bytes */
+            unsigned char buff[1024]={0};
+            int nread = fread(buff,1,1024,fp);
+            //printf("Bytes read %d \n", nread);
+
+            /* If read was success, send data. */
+            if(nread > 0)
+            {
+                //printf("Sending \n");
+                write(sockfd, buff, nread);
+            }
+            if (nread < 1024)
+            {
+                if (feof(fp))
+		{
+                    printf("End of file\n");
+		    printf("File transfer completed for id: %d\n",sockfd);
+		}
+                if (ferror(fp))
+                    printf("Error reading\n");
+                break;
+            }
+        }
+printf("Closing Connection for id: %d\n",sockfd);
+close(sockfd);
+shutdown(sockfd,SHUT_WR);
+sleep(2);
+}
+
 int main(int argc, char *argv[])
 {
     system("clear");
-    int sockfd = 0;
+    int sockfd = 0, err;
+    pthread_t tid;
     int bytesReceived = 0;
     char recvBuff[1024];
     memset(recvBuff, '0', sizeof(recvBuff));
@@ -29,6 +75,9 @@ int main(int argc, char *argv[])
         printf("\n Error : Could not create socket \n");
         return 1;
     }
+
+	printf("Enter file name to send: ");
+        gets(fname);
 
     /* Initialize sockaddr_in data structure */
     serv_addr.sin_family = AF_INET;
@@ -53,36 +102,53 @@ else
 
     printf("Connected to ip: %s : %d\n",inet_ntoa(serv_addr.sin_addr),ntohs(serv_addr.sin_port));
 
-   	 /* Create file where data will be stored */
-    	FILE *fp;
-	char fname[100];
-	read(sockfd, fname, 256);
-	//strcat(fname,"AK");
-	printf("File Name: %s\n",fname);
-	printf("Receiving file...");
-   	 fp = fopen(fname, "ab");
-    	if(NULL == fp)
-    	{
-       	 printf("Error opening file");
-         return 1;
-    	}
-    long double sz=1;
-    /* Receive data in chunks of 256 bytes */
-    while((bytesReceived = read(sockfd, recvBuff, 1024)) > 0)
-    {
-        sz++;
-        gotoxy(0,4);
-        printf("Received: %llf Mb",(sz/1024));
-	fflush(stdout);
-        // recvBuff[n] = 0;
-        fwrite(recvBuff, 1,bytesReceived,fp);
-        // printf("%s \n", recvBuff);
-    }
 
-    if(bytesReceived < 0)
-    {
-        printf("\n Read Error \n");
-    }
-    printf("\nFile OK....Completed\n");
+//    err = pthread_create(&tid, NULL, &SendFileToClient, &sockfd);
+//        if (err != 0)
+//            printf("\ncan't create thread :[%s]", strerror(err));
+
+        printf("Connection accepted and id: %d\n",sockfd);
+      printf("Connected to Clent: %s:%d\n",inet_ntoa(c_addr.sin_addr),ntohs(c_addr.sin_port));
+       send(sockfd, fname,256);
+
+        FILE *fp = fopen(fname,"rb");
+        if(fp==NULL)
+        {
+            printf("File open error");
+            return 1;
+        }
+
+   	 /* Create file where data will be stored */
+//    	FILE *fp;
+//	char fname[100];
+//	read(sockfd, fname, 256);
+//	//strcat(fname,"AK");
+//	printf("File Name: %s\n",fname);
+//	printf("Receiving file...");
+//   	 fp = fopen(fname, "ab");
+//    	if(NULL == fp)
+//    	{
+//       	 printf("Error opening file");
+//         return 1;
+//    	}
+//    long double sz=1;
+//    /* Receive data in chunks of 256 bytes */
+//    while((bytesReceived = read(sockfd, recvBuff, 1024)) > 0)
+//    {
+//        sz++;
+//        gotoxy(0,4);
+//        printf("Received: %llf Mb",(sz/1024));
+//	fflush(stdout);
+//        // recvBuff[n] = 0;
+//        fwrite(recvBuff, 1,bytesReceived,fp);
+//        // printf("%s \n", recvBuff);
+//    }
+//
+//    if(bytesReceived < 0)
+//    {
+//        printf("\n Read Error \n");
+//    }
+//    printf("\nFile OK....Completed\n");
     return 0;
+
 }

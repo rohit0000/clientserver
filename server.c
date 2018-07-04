@@ -11,7 +11,10 @@
 
 struct sockaddr_in c_addr;
 char fname[100];
-
+void gotoxy(int x,int y)
+ {
+ printf("%c[%d;%df",0x1B,y,x);
+ }
 void* SendFileToClient(int *arg)
 {
       int connfd=(int)*arg;
@@ -22,9 +25,9 @@ void* SendFileToClient(int *arg)
         FILE *fp = fopen(fname,"rb");
         if(fp==NULL)
         {
-            printf("File opern error");
-            return 1;   
-        }   
+            printf("File open error");
+            return 1;
+        }
 
         /* Read data from file and send it */
         while(1)
@@ -32,7 +35,7 @@ void* SendFileToClient(int *arg)
             /* First read file in chunks of 256 bytes */
             unsigned char buff[1024]={0};
             int nread = fread(buff,1,1024,fp);
-            //printf("Bytes read %d \n", nread);        
+            //printf("Bytes read %d \n", nread);
 
             /* If read was success, send data. */
             if(nread > 0)
@@ -61,7 +64,7 @@ sleep(2);
 int main(int argc, char *argv[])
 {
     int connfd = 0,err;
-    pthread_t tid; 
+    pthread_t tid;
     struct sockaddr_in serv_addr;
     int listenfd = 0,ret;
     char sendBuff[1025];
@@ -94,28 +97,70 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-if (argc < 2) 
-{
-	printf("Enter file name to send: ");
-        gets(fname);
-}
-else
-   strcpy(fname,argv[1]);
-
-    while(1)
+//if (argc < 2)
+//{
+//	printf("Enter file name to send: ");
+//        gets(fname);
+//}
+//else
+//   strcpy(fname,argv[1]);
+    int flag =1;
+    while(flag)
     {
         clen=sizeof(c_addr);
         printf("Waiting...\n");
         connfd = accept(listenfd, (struct sockaddr*)&c_addr,&clen);
         if(connfd<0)
         {
-	  printf("Error in accept\n");
-	  continue;	
-	}
-        err = pthread_create(&tid, NULL, &SendFileToClient, &connfd);
-        if (err != 0)
-            printf("\ncan't create thread :[%s]", strerror(err));
+          printf("Error in accept\n");
+          continue;
+        }
+        else if (connfd>0){
+
+            flag = 0;
+        }
+//        err = pthread_create(&tid, NULL, &SendFileToClient, &connfd);
+//        if (err != 0)
+//            printf("\ncan't create thread :[%s]", strerror(err));
    }
-    close(connfd);
+
+    printf("Connected\n");
+
+   	FILE *fp;
+   	int bytesReceived = 0;
+	char fname[100];
+	    char recvBuff[1024];
+    memset(recvBuff, '0', sizeof(recvBuff));
+	read(listenfd, fname, 256);
+	//strcat(fname,"AK");
+	puts(fname);
+	printf("File Name: %s\n",fname);
+	printf("Receiving file...");
+   	 fp = fopen(fname, "ab");
+    	if(NULL == fp)
+    	{
+       	 printf("Error opening file");
+         return 1;
+    	}
+    long double sz=1;
+    /* Receive data in chunks of 256 bytes */
+    while((bytesReceived = read(listenfd, recvBuff, 1024)) > 0)
+    {
+        sz++;
+        gotoxy(0,4);
+        printf("Received: %llf Mb",(sz/1024));
+	fflush(stdout);
+        // recvBuff[n] = 0;
+        fwrite(recvBuff, 1,bytesReceived,fp);
+        // printf("%s \n", recvBuff);
+    }
+
+    if(bytesReceived < 0)
+    {
+        printf("\n Read Error \n");
+    }
+    printf("\nFile OK....Completed\n");
     return 0;
+//    close(connfd);
+//    return 0;
 }
